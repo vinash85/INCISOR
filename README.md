@@ -1,34 +1,55 @@
-##
-The datasets to run code is available at https://www.dropbox.com/s/uw22lmqvmkkwezn/incisor.tar.gz?dl=0 or   http://www.umiacs.umd.edu/~vinash85/public/incisor.tar.gz 
-The working directory (working dir) contains two subdirectories, src and data, which respectively contain the code and the input data set.
-The code needs to be run from working directory. 
-## 
-The  src subdirectory contains two versions of the INCISOR code:
-1. INCISOR.DU.R: The Full code INCISOR mining all 500 million gene-gene pairs to identify cancer SR interactions. The code can be run by simply sourcing the INCISOR.DU.R.  Once the code run successfully the final output, i.e the list of SR interaction identified by INCISOR, will be stored in the variable "positive.sr.du.interactions". This variable also stores the aggregate score/significance obtained at each of the four screening steps of INCISOR.  All the input data set required are automatically uploaded by the R code from “data” subdirectory . 
+# INCISOR
 
-2. INCISOR.DU.top500.R: This is a version INCISOR that runs on top 500 SR interaction gene pairs that were identified via applying the full INCISOR code. In particular, it runs all four screening steps (in-vitro, sof, clinical and phylogenetic screens). Please note that FDR level estimated on this subset will be obviously  different from the full INCISOR that processes all 500 million gene pairs given the much smaller search space. The final output, positive SR interactions and corresponding score/signifcance will be stored in a variable named "positive.sr.du.interactions".  All the input data set required are automatically uploaded by the R code from “data” subdirectory. 
-As a negative example of SR interactions, we chose 500 gene pairs that show shRNA evidence of interactions but were not identified by INCISOR having SR interactions. Set negative control flag to TRUE (use.negative.sr.interaction=TRUE) in INCISOR.DU.top500.R to activate this mode.  The result of each screens of INCISOR for negative examples are given in variable "sr.gene.all.screen.stats"   
+Identifying synethetic rescue interactions in humans. 
 
-The src subdirectory also contains:
-source.incisor.R: This file contain main helper functions of INCISOR, that are needed to run it.
-HyperGeometricTest.pair.cpp: C-code that is sourced by (using Rcpp) both the above versions of INCISOR. 
+Check out the manuscript in Molecular System Biology: 
+- [msb website](https://www.embopress.org/doi/full/10.15252/msb.20188323)
 
+# System requirements 
 
-## INCISOR need following R packages:
-1. data.table
-2. Rcpp (recommended to install by source)
-3. RcppArmadillo (recommended to install by source)
-4. Parallel
-5. survival 
-6. lsr
-7. doMC
-8. foreach
+INCISOR has been tested on R versions >= 3.2. INCISOR has been tested on Linux and OS X.
 
+# Installation  
+
+First download the dataset from https://www.dropbox.com/s/uw22lmqvmkkwezn/incisor.tar.gz?dl=0
+The working directory (working dir) contains data directory containing the input data set.
+
+Open R from INCISOR working directory 
+
+```
+gunzip -c incisor.tar.gz|tar -xvf
+mv incisor/data INCISOR/
+cd INCISOR 
+R
+```
+To run INCISOR, install dependencies
+```r
+install.packages(c("Rcpp", "RcppArmadillo", "survival", "lsr", "doMC"))
+```
 # Extra settings
-In some environment to run the c-code following commands are required to set the variables 
+In some environment to run the c-code following commands are required to set the variables : 
+
+```r
 Sys.setenv("PKG_CXXFLAGS"="-fopenmp")
 Sys.setenv("PKG_LIBS"="-fopenmp")
 library(RcppArmadillo)
+```
+
+## Quick start 
+
+```r
+source("src/INCISOR.DU.top500.R")
+```
+ "INCISOR.DU.top500.R" identifies top 500 SR interaction gene pairs. It runs all four screening steps (in-vitro, sof, clinical and phylogenetic screens). FDR level estimated on this subset will be obviously  different from the full INCISOR. The final output is "positive.sr.du.interactions".  
+
+## Screen all 500 million gene pair 
+Note the code takes 3 days in a 32 core machines
+```r
+source("src/INCISOR.DU.R")
+```
+Results are available in "positive.sr.du.interactions"
+
+
 
 
 
