@@ -1,8 +1,15 @@
 ##### INCISOR source code #####
 
-############# load libraries
+use.negative.sr.interaction=FALSE 
+### set this flag to TRUE to include 500 negative example of SR interaction. 
+# use.negative.sr.interaction = TRUE
+
+############# set ENV and load librariesa
+Sys.setenv("PKG_CXXFLAGS"="-fopenmp")
+Sys.setenv("PKG_LIBS"="-fopenmp")
 library(data.table)
 library(Rcpp)
+library(RcppArmadillo)
 library(parallel)
 library(survival)
 library(lsr)
@@ -10,8 +17,15 @@ require(doMC)
 require(foreach)
 registerDoMC(cores = 64)
 
+###### some environment variables need be set for Rcpp
+Sys.setenv("PKG_CXXFLAGS"="-fopenmp")
+Sys.setenv("PKG_LIBS"="-fopenmp")
+library(RcppArmadillo)
+
+
+
 ####### load TCGA data ##########
-load("TCGA.RData")
+load("data/TCGA.RData")
 
 ####### The mRNA expression (RNAseqV2) and patients' clinical characteristics were downloaded from TCGA Data Portal,
 ### and copy number data (Gistic values) was downloaded from Broad Institute's Firehose (https://gdac.broadinstitute.org/)
@@ -35,7 +49,7 @@ load("TCGA.RData")
 
 ### all data inside the pancancer data.structure. 
 pancancer = prob 
-
+rm(prob)
 source("src/source.incisor.R")
 
 ############# store variables for following analysis
@@ -49,16 +63,26 @@ typeNum= length(unique(typeInx ));levels(typeInx) = seq(typeNum)-1
 ################### Collecting P-values from the 4 INCISOR screenings #######################
 ##########################################################################################
 ### top 500 SR interactions 
-load("data/sr.500.RData")
-sr.all = sr.500 
-sr.all = rbind(rep(seq(numGenes), each=numGenes), rep(seq(numGenes), numGenes))
-sr.all = sr.all[sr.all[,1]!=sr.all[,2],]
+ 
+if(use.negative.sr.interaction){
+	load("data/sr.neg.500.RData")
+	sr.all = sr.neg.500
+}else{
+	load("data/sr.500.tp.controlled.RData")
+	sr.all = sr.500
+}
+# sr.all = rbind(rep(seq(numGenes), each=numGenes), rep(seq(numGenes), numGenes))
+# sr.all = sr.all[sr.all[,1]!=sr.all[,2],]
 
 ##########################################################################################
 ###### Step 2. invitro  screening ######################################################
 ##########################################################################################
 ### We collected the following 2 large-scale shRNA (achilles and marcotte) and a drug screen essentiality screening datasets for step 1, 
 ### and run the screening for all possible gene pairs
+
+
+
+
 
 
 ##### drug response screen (Iorio et. al 2016, Cell)
@@ -96,7 +120,7 @@ iorio.sig = do.call(cbind, outbed) ### s
 outbed.eff = foreach(x = seq(length(iorio$genes)), .inorder=T) %dopar% find.interacting.eff(x,iorio=iorio, probs=0.1, alternative = "less")
 iorio.eff = do.call(cbind, outbed.eff) ###  
 
-fdr.thr.curr = 0.05 
+fdr.thr.curr = 0.1 
 iorio.sig.fdr = t(apply(iorio.sig, 1, function(tt) p.adjust(tt, method="fdr")))
 
 iorio.sig.pairs.large = which(iorio.sig.fdr < fdr.thr.curr, arr.ind = T)
@@ -122,6 +146,9 @@ iorio.sig.pairs.gene = data.table(
   	iorio.synergistic = do.call(rbind, temp1)
   	iorio.synergistic[,label:= paste(gene, target, sep=":")]
   	iorio.syn.score =iorio.synergistic[, list(score=max(score)), by=label]
+
+
+
 
 #  iorio scna 
 
@@ -166,12 +193,14 @@ drug.label.selected1 = unique(c(iorio.syn.score$label,iorio.syn.score.scna$label
 sr.gene.all = data.table(rescuer = pancancer$genes[sr.all[,1]], vulnerable = pancancer$genes[sr.all[,2]])
 
 iorio.screen = paste(sr.gene.all$rescuer, sr.gene.all$vulnerable,sep=":") %in%  drug.label.selected 
+
 temp1 = cbind( iorio.syn.score.scna$score[match(paste(sr.gene.all$rescuer, sr.gene.all$vulnerable,sep=":"), iorio.syn.score.scna$label)], 
 iorio.syn.score.scna$score[match(paste(sr.gene.all$vulnerable, sr.gene.all$rescuer,sep=":"), iorio.syn.score.scna$label)], 
 iorio.syn.score$score[match(paste(sr.gene.all$rescuer, sr.gene.all$vulnerable,sep=":"), iorio.syn.score$label)],
 iorio.syn.score$score[match(paste(sr.gene.all$vulnerable, sr.gene.all$rescuer,sep=":"), iorio.syn.score$label)])
 temp2= apply(temp1, 1, max,na.rm=T)
-iorio.cohen.score = ifelse(  temp2==-Inf, NA, temp2) 
+iorio.cohen.score = ifelse(  temp2==-Inf, NA, temp2)  
+
 #shRNA screen 
 
 # load("achilles.old.RData") # Cheung et al. PNAS (2011).
@@ -179,7 +208,6 @@ iorio.cohen.score = ifelse(  temp2==-Inf, NA, temp2)
 # load("marcotte.old.RData") # Marcotte et al. Cancer Discov (2012).
 # load("marcotte.new.RData") # Marcotte et al. Cell (2016).
 
-# 
 shRNA.screen.marcotte.new =  shRNA.screen.dataset(sr.all, shRNA.file="data/marcotte.new.RData") # Marcotte et al. Cell (2016).
 
 ### this table shows the data fields included in the first dataset (Cheung et al.) as an example,
@@ -215,14 +243,14 @@ temp1 = cbind(shRNA.screen.marcotte.new,shRNA.screen.marcotte.old, shRNA.screen.
 temp2= apply(temp1, 1, min,na.rm=T)
 shRNA.significance.fdr = ifelse(  temp2==-Inf, NA, temp2) 
 
-sr.invitro = sr.curr[which(invitro.screen), ] 
+sr.curr=sr.all
+sr.invitro = sr.curr[invitro.screen, ] 
 
 
 ##########################################################################################
 ###### Step 2. SoF screening ############################################################
 ##########################################################################################
-
-sr.curr = sr.invitro
+sr.curr = sr.all
 library(Rcpp)
 sourceCpp("src/HyperGeometricTest.pair.cpp",rebuild=T)
 
@@ -231,8 +259,6 @@ sourceCpp("src/HyperGeometricTest.pair.cpp",rebuild=T)
 ########## negative p-values -> depletion, positive p-values -> enrichment
 #### given a gene activity in (0: inactive, 1 : normal and 2: high), there are 9 possible functional activity state of gene pair A-B. 
 
-
- 
 ## molecular 
 pval.scna1 = hypergeometricTestPair(scnaq= pancancer$scnaq2, pairs=sr.curr)
 pval.scna.up = hypergeometricTestPair(scnaq= pancancer$scnaq2, pairs=sr.curr,lowerTail=0)
@@ -246,20 +272,16 @@ pval.mRNA = cbind(sr.curr[,1:2], pval.mRNA1, pval.mRNA.up)
 sof.fdr.scna = sof.pattern(pval.scna)
 sof.fdr.mRNA = sof.pattern(pval.mRNA)
 sof.aggreage.fdr = ifelse(sof.fdr.scna < sof.fdr.mRNA, sof.fdr.scna, sof.fdr.mRNA)
-sof.screen = sof.fdr.scna < 0.05 & sof.fdr.mRNA < 0.05
-
-sr.sof = sr.curr[which(sof.screen),] ### putative SR gene pairs passing SOF screen 
+sof.screen = sof.fdr.scna < 0.1 | sof.fdr.mRNA < 0.1
 
 
 ##########################################################################################
 ###### Step 3. Clinical screening ########################################################
 ##########################################################################################
 ### pre-processing the molecular and survival data for cox regression 
+sr.curr = sr.all
 
-
-
-sr.curr = sr.invitro
-
+library(parallel)
 numGenes = length(pancancer$genes)
 numSamples = length(pancancer$sample)
 mRNA.norm = mclapply(1:numSamples, function(tt) qnorm.array(pancancer$mRNA[,tt]),mc.cores=64)
@@ -279,24 +301,33 @@ pancancer$age = ifelse(is.na(pancancer$age), mean(pancancer$age,na.rm=T), pancan
 pancancer$race = ifelse(is.na(pancancer$race),"unknown", pancancer$race)
 pancancer$sex = ifelse(is.na(pancancer$sex),"FEMALE", pancancer$sex)
 gii =  calculate.genomic.instability(pancancer$scna)
-surv.all = data.table(pancancer$survival, types= pancancer$types, age = qnorm.array(pancancer$age), sex = pancancer$sex, race = pancancer$race, gii = gii)
+tumor.purity <- pancancer$tumor.purity[,lapply(.SD, function(tt) ifelse(is.na(tt), median(tt,na.rm=T),tt))]
+
+surv.all = data.table(pancancer$survival, types= pancancer$types, age = qnorm.array(pancancer$age), sex = pancancer$sex, race = pancancer$race, gii = gii, 
+	tumor.purity.ABSOLUTE = pancancer$tumor.purity$ABSOLUTE, 
+	tumor.purity.LUMP = tumor.purity$LUMP, 
+	tumor.purity.IHC = tumor.purity$IHC, 
+	tumor.purity.CPE = tumor.purity$CPE
+	)
 setnames(surv.all, 1:2, c("time","status"))
 surv.all$status = ifelse(surv.all$status==1,0,1)
 pancancer$surv.strata = surv.all
 pancancer$types = pancancer$type 
+f2.list= c(  "strata(sex)",  "age", "strata(race)", "gii", "tumor.purity.ABSOLUTE", "tumor.purity.IHC", "tumor.purity.LUMP", "tumor.purity.CPE") ### confounding factors controlled  
+
 
 
 ##########################################################################################
 ### cox regression using scna 
 ##########################################################################################
-cox.scna = mclapply(1:nrow(sr.curr), function(tt) cox.pair.du.strata.controlled(sr.curr[tt,], prob =pancancer, use.mRNA=F),mc.cores=64)
+cox.scna = mclapply(1:nrow(sr.curr), function(tt) cox.pair.du.strata.controlled(sr.curr[tt,], prob =pancancer, f2.list=f2.list, use.mRNA=F),mc.cores=32)
 cox.du.scna.curr = do.call(rbind, cox.scna)
 cox.du.scna=cbind(sr.curr,cox.du.scna.curr)
 
 ##########################################################################################
 ### cox regression using mRNA 
 ##########################################################################################
-cox.mRNA = mclapply(1:nrow(sr.curr), function(tt) cox.pair.du.strata.controlled(sr.curr[tt,], prob =pancancer, use.mRNA=T),mc.cores=64)
+cox.mRNA = mclapply(1:nrow(sr.curr), function(tt) cox.pair.du.strata.controlled(sr.curr[tt,], prob =pancancer, f2.list=f2.list, use.mRNA=T),mc.cores=32)
 cox.du.mRNA.curr = do.call(rbind, cox.mRNA)
 cox.du.mRNA=cbind(sr.curr,cox.du.mRNA.curr)
 
@@ -312,10 +343,11 @@ clinical.fdr = sapply(1:ncol(clinical.beta), function(tt) {
 	p.adjust(p, method="fdr")
 })
 
-clinical.fdr.thr = .05
+clinical.fdr.thr = .1
 clinical.screen = rowSums(clinical.fdr < clinical.fdr.thr ) >= 1 
 clinical.signficance.fdr = apply(clinical.fdr, 1, min)
 sr.clinical = sr.curr[which(clinical.screen),]
+
 
 
 ##########################################################################################
@@ -327,33 +359,33 @@ load("data/nmf.cluster.weight.RData")
 ### the cluseter weights are determined based on the phylogenetic tree (Ensembl database: http://useast.ensembl.org/index.html)
 
 ### function to identify phylogenetic distance of a pair of genes
-sr.curr  =sr.invitro
+sr.curr  =sr.all
+
 sr.gene.all = data.table(rescuer = pancancer$genes[sr.curr[,1]], vulnerable = pancancer$genes[sr.curr[,2]])
 phylogenetic.screen = phylo.profile.screen(sr.gene.all )
 phylogenetic.distance.score = phylo.profile(sr.gene.all )
 
 
 ########## Select pairs that pass Step 4: Phylogenetic screening
-sr.phylogenetic = sr.curr[which(phylogenetic.screen), ]
+sr.phylogenetic = sr.curr[phylogenetic.screen, ]
 
 ##########################################################################################
 ########## Final SR pairs that pass all 4 screenings #####################################
 ##########################################################################################
 
-####### aggregate stats significance/score for each screen#######
+####### aggregate stats significance/score of each screen#######
 
-sr.gene.all.screen.stats = data.table(rescuer = pancancer$genes[sr.invitro[,1]], vulnerable = pancancer$genes[sr.invitro[,2]]) 
-
+sr.gene.all.screen.stats = sr.gene.all
 sr.gene.all.screen.stats$iorio.cohen.score = iorio.cohen.score
 sr.gene.all.screen.stats$shRNA.aggreage.fdr = shRNA.significance.fdr
 sr.gene.all.screen.stats$sof.aggreage.fdr = sof.aggreage.fdr
 sr.gene.all.screen.stats$clinical.aggreage.fdr = clinical.signficance.fdr
 sr.gene.all.screen.stats$phylogenetic.distance.score= phylogenetic.distance.score
+
+
 ### final positive SR DU interactions 
 positive.sr.du.interactions  = sr.gene.all.screen.stats[which(invitro.screen & clinical.screen & phylogenetic.screen & sof.screen)]
 ## the data table provide aggregate significance or score of each screenings step 
-
-
 
 
 
