@@ -1,8 +1,8 @@
-###
+##
 The datasets to run code is available at  http://www.umiacs.umd.edu/~vinash85/public/incisor.tar.gz 
 The working directory (working dir) contains two subdirectories, src and data, which respectively contain the code and the input data set.
 The code needs to be run from working directory. 
-###  
+## 
 The  src subdirectory contains two versions of the INCISOR code:
 1. INCISOR.DU.R: The Full code INCISOR mining all 500 million gene-gene pairs to identify cancer SR interactions. The code can be run by simply sourcing the INCISOR.DU.R.  Once the code run successfully the final output, i.e the list of SR interaction identified by INCISOR, will be stored in the variable "positive.sr.du.interactions". This variable also stores the aggregate score/significance obtained at each of the four screening steps of INCISOR.  All the input data set required are automatically uploaded by the R code from “data” subdirectory . 
 
@@ -14,19 +14,18 @@ source.incisor.R: This file contain main helper functions of INCISOR, that are n
 HyperGeometricTest.pair.cpp: C-code that is sourced by (using Rcpp) both the above versions of INCISOR. 
 
 
-### README ###
+## INCISOR need following R library installed:
+1. data.table
+2. Rcpp
+3. RcppArmadillo
+4. Parallel
+5. survival
+6. lsr
+7. doMC
+8. foreach
 
-INCISOR need following R library installed:
-data.table
-Rcpp
-RcppArmadillo
-Parallel
-survival
-lsr
-doMC
-foreach
-
-#### In some environment to run the c-code following commands are required to set the variables 
+# Extra settings
+In some environment to run the c-code following commands are required to set the variables 
 Sys.setenv("PKG_CXXFLAGS"="-fopenmp")
 Sys.setenv("PKG_LIBS"="-fopenmp")
 library(RcppArmadillo)
