@@ -1,5 +1,5 @@
 ##
-The datasets to run code is available at  http://www.umiacs.umd.edu/~vinash85/public/incisor.tar.gz 
+The datasets to run code is available at https://www.dropbox.com/s/uw22lmqvmkkwezn/incisor.tar.gz?dl=0 or   http://www.umiacs.umd.edu/~vinash85/public/incisor.tar.gz 
 The working directory (working dir) contains two subdirectories, src and data, which respectively contain the code and the input data set.
 The code needs to be run from working directory. 
 ## 
@@ -14,12 +14,12 @@ source.incisor.R: This file contain main helper functions of INCISOR, that are n
 HyperGeometricTest.pair.cpp: C-code that is sourced by (using Rcpp) both the above versions of INCISOR. 
 
 
-## INCISOR need following R library installed:
+## INCISOR need following R packages:
 1. data.table
-2. Rcpp
-3. RcppArmadillo
+2. Rcpp (recommended to install by source)
+3. RcppArmadillo (recommended to install by source)
 4. Parallel
-5. survival
+5. survival 
 6. lsr
 7. doMC
 8. foreach
