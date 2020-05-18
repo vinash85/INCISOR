@@ -24,7 +24,7 @@ R
 ```
 To run INCISOR, install dependencies
 ```r
-install.packages(c("Rcpp", "RcppArmadillo", "survival", "lsr", "doMC"))
+install.packages(c("Rcpp", "RcppArmadillo", "survival", "lsr", "doMC", "parallel", "data.table", "foreach"))
 ```
 # Extra settings
 In some environment to run the c-code following commands are required to set the variables : 
