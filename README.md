@@ -11,7 +11,10 @@ INCISOR has been tested on R versions >= 3.2. INCISOR has been tested on Linux a
 
 # Installation  
 
-First download the dataset from https://www.dropbox.com/s/uw22lmqvmkkwezn/incisor.tar.gz?dl=0
+First download the dataset from http://ds.dfci.harvard.edu/~asahu/pub.data/INCISOR/incisor.tar.gaz
+
+The dataset could als be downloaded from [dropbox](https://www.dropbox.com/s/uw22lmqvmkkwezn/incisor.tar.gz?dl=0). 
+
 The working directory (working dir) contains data directory containing the input data set.
 
 Open R from INCISOR working directory 
