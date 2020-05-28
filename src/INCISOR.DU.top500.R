@@ -17,13 +17,6 @@ require(doMC)
 require(foreach)
 registerDoMC(cores = 64)
 
-###### some environment variables need be set for Rcpp
-Sys.setenv("PKG_CXXFLAGS"="-fopenmp")
-Sys.setenv("PKG_LIBS"="-fopenmp")
-library(RcppArmadillo)
-
-
-
 ####### load TCGA data ##########
 load("data/TCGA.RData")
 
@@ -49,7 +42,7 @@ load("data/TCGA.RData")
 
 ### all data inside the pancancer data.structure. 
 pancancer = prob 
-rm(prob)
+
 source("src/source.incisor.R")
 
 ############# store variables for following analysis
@@ -68,7 +61,7 @@ if(use.negative.sr.interaction){
 	load("data/sr.neg.500.RData")
 	sr.all = sr.neg.500
 }else{
-	load("data/sr.500.tp.controlled.RData")
+	load("data/sr.500.RData")
 	sr.all = sr.500
 }
 # sr.all = rbind(rep(seq(numGenes), each=numGenes), rep(seq(numGenes), numGenes))
@@ -120,7 +113,7 @@ iorio.sig = do.call(cbind, outbed) ### s
 outbed.eff = foreach(x = seq(length(iorio$genes)), .inorder=T) %dopar% find.interacting.eff(x,iorio=iorio, probs=0.1, alternative = "less")
 iorio.eff = do.call(cbind, outbed.eff) ###  
 
-fdr.thr.curr = 0.1 
+fdr.thr.curr = 0.05 
 iorio.sig.fdr = t(apply(iorio.sig, 1, function(tt) p.adjust(tt, method="fdr")))
 
 iorio.sig.pairs.large = which(iorio.sig.fdr < fdr.thr.curr, arr.ind = T)
@@ -272,7 +265,7 @@ pval.mRNA = cbind(sr.curr[,1:2], pval.mRNA1, pval.mRNA.up)
 sof.fdr.scna = sof.pattern(pval.scna)
 sof.fdr.mRNA = sof.pattern(pval.mRNA)
 sof.aggreage.fdr = ifelse(sof.fdr.scna < sof.fdr.mRNA, sof.fdr.scna, sof.fdr.mRNA)
-sof.screen = sof.fdr.scna < 0.1 | sof.fdr.mRNA < 0.1
+sof.screen = sof.fdr.scna < 0.05 & sof.fdr.mRNA < 0.05
 
 
 ##########################################################################################
@@ -301,33 +294,25 @@ pancancer$age = ifelse(is.na(pancancer$age), mean(pancancer$age,na.rm=T), pancan
 pancancer$race = ifelse(is.na(pancancer$race),"unknown", pancancer$race)
 pancancer$sex = ifelse(is.na(pancancer$sex),"FEMALE", pancancer$sex)
 gii =  calculate.genomic.instability(pancancer$scna)
-tumor.purity <- pancancer$tumor.purity[,lapply(.SD, function(tt) ifelse(is.na(tt), median(tt,na.rm=T),tt))]
-
-surv.all = data.table(pancancer$survival, types= pancancer$types, age = qnorm.array(pancancer$age), sex = pancancer$sex, race = pancancer$race, gii = gii, 
-	tumor.purity.ABSOLUTE = pancancer$tumor.purity$ABSOLUTE, 
-	tumor.purity.LUMP = tumor.purity$LUMP, 
-	tumor.purity.IHC = tumor.purity$IHC, 
-	tumor.purity.CPE = tumor.purity$CPE
-	)
+surv.all = data.table(pancancer$survival, types= pancancer$types, age = qnorm.array(pancancer$age), sex = pancancer$sex, race = pancancer$race, gii = gii)
 setnames(surv.all, 1:2, c("time","status"))
 surv.all$status = ifelse(surv.all$status==1,0,1)
 pancancer$surv.strata = surv.all
 pancancer$types = pancancer$type 
-f2.list= c(  "strata(sex)",  "age", "strata(race)", "gii", "tumor.purity.ABSOLUTE", "tumor.purity.IHC", "tumor.purity.LUMP", "tumor.purity.CPE") ### confounding factors controlled  
 
 
 
 ##########################################################################################
 ### cox regression using scna 
 ##########################################################################################
-cox.scna = mclapply(1:nrow(sr.curr), function(tt) cox.pair.du.strata.controlled(sr.curr[tt,], prob =pancancer, f2.list=f2.list, use.mRNA=F),mc.cores=32)
+cox.scna = mclapply(1:nrow(sr.curr), function(tt) cox.pair.du.strata.controlled(sr.curr[tt,], prob =pancancer, use.mRNA=F),mc.cores=32)
 cox.du.scna.curr = do.call(rbind, cox.scna)
 cox.du.scna=cbind(sr.curr,cox.du.scna.curr)
 
 ##########################################################################################
 ### cox regression using mRNA 
 ##########################################################################################
-cox.mRNA = mclapply(1:nrow(sr.curr), function(tt) cox.pair.du.strata.controlled(sr.curr[tt,], prob =pancancer, f2.list=f2.list, use.mRNA=T),mc.cores=32)
+cox.mRNA = mclapply(1:nrow(sr.curr), function(tt) cox.pair.du.strata.controlled(sr.curr[tt,], prob =pancancer, use.mRNA=T),mc.cores=32)
 cox.du.mRNA.curr = do.call(rbind, cox.mRNA)
 cox.du.mRNA=cbind(sr.curr,cox.du.mRNA.curr)
 
@@ -343,7 +328,7 @@ clinical.fdr = sapply(1:ncol(clinical.beta), function(tt) {
 	p.adjust(p, method="fdr")
 })
 
-clinical.fdr.thr = .1
+clinical.fdr.thr = .05
 clinical.screen = rowSums(clinical.fdr < clinical.fdr.thr ) >= 1 
 clinical.signficance.fdr = apply(clinical.fdr, 1, min)
 sr.clinical = sr.curr[which(clinical.screen),]

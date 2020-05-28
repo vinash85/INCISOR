@@ -1271,7 +1271,7 @@ phylo.profile = function(sr.gene.all){
 	load("data/nmf.cluster.weight.RData")
 	sr.gene1 = sr.gene.all
 	sr.phylo =  cbind(match(sr.gene1$rescuer, phylo$genes), match(sr.gene1$vulnerable, phylo$genes))
-	featureMat = (phylo[sr.phylo[,1],-(1:3)] - phylo[sr.phylo[,2],-(1:3)])^2
+	featureMat = as.matrix((phylo[sr.phylo[,1],-(1:3)] - phylo[sr.phylo[,2],-(1:3)])^2)
 	featureMat %*% t(feature.weight)
 }
 
@@ -1280,7 +1280,7 @@ phylo.profile.screen = function(sr.gene.all){
 	load("data/nmf.cluster.weight.RData")
 	sr.gene1 = sr.gene.all
 	sr.phylo =  cbind(match(sr.gene1$rescuer, phylo$genes), match(sr.gene1$vulnerable, phylo$genes))
-	featureMat = (phylo[sr.phylo[,1],-(1:3)] - phylo[sr.phylo[,2],-(1:3)])^2
+	featureMat = as.matrix((phylo[sr.phylo[,1],-(1:3)] - phylo[sr.phylo[,2],-(1:3)])^2)
 	phylo.score = featureMat %*% t(feature.weight)
 	phylo.difference.threshold = 2.315712e+01 ### the threshold is set to 90% of phylogenetic difference between all 500 million gene pairs.  More than 75% of golden set SRs pass this threshold (as opposed to expected 10% by a random chance) . 
 	phylo.score <  phylo.difference.threshold  
