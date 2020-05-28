@@ -21,8 +21,8 @@ Open R from INCISOR working directory
 
 ```
 gunzip -c incisor.tar.gz|tar -xvf
-mv incisor/data INCISOR/
-cd INCISOR 
+mv incisor/data INCISOR-master/
+cd INCISOR-master 
 R
 ```
 To run INCISOR, install dependencies
